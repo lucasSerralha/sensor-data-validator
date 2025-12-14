@@ -123,37 +123,3 @@ Tópico: sensor-events (Gerado pelo iot-sensor-producer)
 "time": 1702569999999
 }
 
-
-🔧 Resolução de Problemas Comuns (Troubleshooting)
-
-Erro: cannot find symbol ou Falha na Compilação
-
-Sintoma: O Java reclama que não encontra métodos como getSensorId ou a classe PaymentEvent.
-
-Causa: O common-dto foi alterado mas o .jar local está desatualizado.
-
-Solução:
-
-Pare os serviços.
-
-Vá à pasta common-dto e execute mvn clean install.
-
-Volte à pasta do serviço e execute mvn clean compile.
-
-Erro: 400 Bad Request no cURL
-
-Sintoma: O endpoint retorna erro HTTP 400.
-
-Causa: Faltam parâmetros na URL.
-
-Solução: Verifique se incluiu plate, amount E parkingSpot. Todos são obrigatórios.
-
-Erro: JSON Vazio ou Erro de Serialização (Jackson)
-
-Sintoma: O consumidor recebe JSON inválido ou lança exceção ao ler a mensagem.
-
-Causa: Falta o construtor vazio nas classes do common-dto.
-
-Solução: Certifique-se que PaymentEvent e SensorEvent têm um construtor público sem argumentos:
-
-public PaymentEvent() {}
