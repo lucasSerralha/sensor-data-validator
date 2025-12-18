@@ -9,6 +9,10 @@ services:
     environment:
       ZOOKEEPER_CLIENT_PORT: 2181
       ZOOKEEPER_TICK_TIME: 2000
+    deploy:
+      resources:
+        limits:
+          memory: 512M
 
   kafka:
     image: confluentinc/cp-kafka:7.5.0
@@ -17,18 +21,19 @@ services:
     depends_on:
       - zookeeper
     ports:
-      - "9092:9092"
+      - "9094:9092"
     environment:
       KAFKA_BROKER_ID: 1
       KAFKA_ZOOKEEPER_CONNECT: 'zookeeper:2181'
-
       KAFKA_LISTENERS: PLAINTEXT://0.0.0.0:9092
-
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
-
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
       KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: PLAINTEXT:PLAINTEXT
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+    deploy:
+      resources:
+        limits:
+          memory: 1G
 
   postgres:
     image: postgres:15-alpine
@@ -39,3 +44,124 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASSWORD: password
       POSTGRES_DB: smart_parking
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning
+      - ./grafana/dashboards:/var/lib/grafana/dashboards
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    depends_on:
+      - prometheus
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  # Microservices
+  iot-sensor-producer:
+    build:
+      context: .
+      dockerfile: iot-sensor-producer/Dockerfile
+    container_name: iot-sensor-producer
+    ports:
+      - "8081:8081"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  driver-api-gateway:
+    build:
+      context: .
+      dockerfile: driver-api-gateway/Dockerfile
+    container_name: driver-api-gateway
+    ports:
+      - "8080:8080"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  parking-controller:
+    build:
+      context: .
+      dockerfile: parking-controller/Dockerfile
+    container_name: parking-controller
+    ports:
+      - "8082:8082"
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smart_parking
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+
+  alert-generator:
+    build:
+      context: .
+      dockerfile: alert-generator/Dockerfile
+    container_name: alert-generator
+    ports:
+      - "8083:8083"
+    depends_on:
+      - kafka
+      - postgres
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      SPRING_DATASOURCE_URL: jdbc:postgresql://postgres:5432/smart_parking
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+
+  notification-dispatcher:
+    build:
+      context: .
+      dockerfile: notification-dispatcher/Dockerfile
+    container_name: notification-dispatcher
+    ports:
+      - "8084:8084"
+    depends_on:
+      - kafka
+    environment:
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+    deploy:
+      resources:
+        limits:
+          memory: 256M

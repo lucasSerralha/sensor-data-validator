@@ -12,7 +12,7 @@
     </parent>
 
     <groupId>com.smartparking</groupId>
-    <artifactId>driver-api-gateway</artifactId>
+    <artifactId>notification-dispatcher</artifactId>
     <version>1.0.0-SNAPSHOT</version>
 
     <properties>

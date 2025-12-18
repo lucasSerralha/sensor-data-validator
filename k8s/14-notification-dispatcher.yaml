@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-dispatcher
+  namespace: smart-parking
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: notification-dispatcher
+  template:
+    metadata:
+      labels:
+        app: notification-dispatcher
+    spec:
+      containers:
+        - name: notification-dispatcher
+          image: notification-dispatcher:latest
+          imagePullPolicy: Never
+          env:
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: kafka:9092
+          ports:
+            - containerPort: 8084
+          resources:
+            limits:
+              memory: "256Mi"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: notification-dispatcher
+  namespace: smart-parking
+spec:
+  selector:
+    app: notification-dispatcher
+  ports:
+    - port: 8084
+      targetPort: 8084
