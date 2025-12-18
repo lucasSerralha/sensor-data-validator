@@ -44,6 +44,9 @@ public class ParkingSession {
     @Column(name = "paid_until")
     private LocalDateTime paidUntil;
 
+    @Column(name = "last_event_time")
+    private LocalDateTime lastEventTime;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -70,4 +73,7 @@ public class ParkingSession {
 
     public LocalDateTime getPaidUntil() { return paidUntil; }
     public void setPaidUntil(LocalDateTime paidUntil) { this.paidUntil = paidUntil; }
+
+    public LocalDateTime getLastEventTime() { return lastEventTime; }
+    public void setLastEventTime(LocalDateTime lastEventTime) { this.lastEventTime = lastEventTime; }
 }

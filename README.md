@@ -122,37 +122,46 @@ graph TD
 This diagram demonstrates the logic flow from sensor detection to alert generation, including the **30s Noise Filter** and **Payment Expiration** rules.
 
 ```mermaid
-graph TD
-    Start((Start))
-    
-    subgraph Ingestion
-    Start --> Detect[Detect Car]
-    Detect --> Validate[Validate Detection (30s Delay)]
-    end
-    
-    Validate --> Session[Create Session (UNPAID)]
-    
-    subgraph Processing
-    Session --> Fork((Fork))
-    
-    Fork -->|Path A| MonitorUnpaid{Unpaid > 1m?}
-    MonitorUnpaid -- Yes --> GenAlert1[Generate Alert: UNPAID_OVERSTAY]
-    
-    Fork -->|Path B| ReceivePay[Receive Payment]
-    ReceivePay --> Calc[Calc Expiration (0.10€ = 1min)]
-    Calc --> SetPaid[Set Status: PAID]
-    SetPaid --> MonitorExpired{Now > PaidUntil?}
-    MonitorExpired -- Yes --> GenAlert2[Generate Alert: PAID_EXPIRED]
-    GenAlert2 --> Revert[Set Status: UNPAID]
-    end
-    
-    subgraph Notification
-    GenAlert1 --> Dispatch[Dispatch Notification]
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph Ingestion["Ingestion"]
+        Detect["Detect Car"]
+        Start(("Start"))
+        Validate["Validate Detection (30s Delay)"]
+  end
+ subgraph Processing["Processing"]
+        Fork(("Fork"))
+        Session["Create Session (UNPAID)"]
+        MonitorUnpaid{"Unpaid > 1m?"}
+        GenAlert1["Generate Alert: UNPAID_OVERSTAY"]
+        ReceivePay["Receive Payment"]
+        Calc["Calc Expiration (0.10€ = 1min)"]
+        SetPaid["Set Status: PAID"]
+        MonitorExpired{"Now > PaidUntil?"}
+        GenAlert2["Generate Alert: PAID_EXPIRED"]
+        Revert["Set Status: UNPAID"]
+  end
+ subgraph Notification["Notification"]
+        Dispatch["Dispatch Notification"]
+  end
+    Start --> Detect
+    Detect --> Validate
+    Validate --> Session
+    Session --> Fork
+    Fork -- Path A --> MonitorUnpaid
+    MonitorUnpaid -- Yes --> GenAlert1
+    Fork -- Path B --> ReceivePay
+    ReceivePay --> Calc
+    Calc --> SetPaid
+    SetPaid --> MonitorExpired & Dispatch
+    MonitorExpired -- Yes --> GenAlert2
+    GenAlert2 --> Revert
+    GenAlert1 --> Dispatch
     Revert --> Dispatch
-    SetPaid --> Dispatch
-    end
-    
-    Dispatch --> End((End))
+    Dispatch --> End(("End"))
 ```
 
 ## 5. How to Run & Test Rules
@@ -209,7 +218,9 @@ Wait for the terminals to open and the "Demo Running!" message.
 *   **Test**:
     1.  Simulate a payment for spot A1:
         ```bash
-        curl -X POST "http://localhost:8080/api/driver/pay?plate=ABC-123&spot=A1&amount=0.10"
+        curl -X POST "http://localhost:8080/api/payments/pay?plate=AA-00-XX&amount=0.10&parkingSpot=A1"
+
+
         ```
     2.  **Expected Output** (`parking-controller`): `>>> Payment Processed... Paid until: <Time + 1 min>`
     3.  Wait > 1 minute.

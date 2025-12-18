@@ -41,6 +41,6 @@ echo -e "${GREEN}>>> Opening Monitoring Terminals...${NC}"
 
 # 5. Trigger Simulation
 echo -e "${GREEN}>>> Triggering Simulation (Sensor A1)...${NC}"
-curl -X POST "http://localhost:8081/api/simulation/trigger?id=A1&time=600"
+curl -X POST "http://localhost:8081/api/simulation/trigger?id=A1&time=180"
 
 echo -e "${GREEN}>>> Demo Running! Check http://localhost:3000 for Grafana (admin/admin)${NC}"

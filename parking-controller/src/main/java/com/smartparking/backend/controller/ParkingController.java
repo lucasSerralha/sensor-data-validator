@@ -62,6 +62,7 @@ public class ParkingController {
                         ParkingSession session = new ParkingSession();
                         session.setSensorId(sensorId);
                         session.setStartTime(firstSeen); // Use the time we first saw it
+                        session.setLastEventTime(now); // Set initial last event time
                         session.setStatus("UNPAID");
                         
                         sessionRepository.save(session);
@@ -76,7 +77,12 @@ public class ParkingController {
                     }
                 }
             } else {
-                // Session already exists, ensure it's not in pending
+                // Session already exists, update lastEventTime
+                ParkingSession session = existingSession.get();
+                session.setLastEventTime(LocalDateTime.now());
+                sessionRepository.save(session);
+                
+                // Ensure it's not in pending
                 pendingSessions.remove(sensorId);
             }
         } catch (Exception e) {
@@ -152,6 +158,20 @@ public class ParkingController {
     public void handleAlertEvent(String message) {
         try {
             AlertEvent event = objectMapper.readValue(message, AlertEvent.class);
+            
+            // Handle Expiration Logic: Update Session to UNPAID
+            if ("PAID_EXPIRED".equals(event.getType())) {
+                Optional<ParkingSession> existingSession = sessionRepository.findBySensorIdAndEndTimeIsNull(event.getSpot());
+                if (existingSession.isPresent()) {
+                    ParkingSession session = existingSession.get();
+                    session.setStatus("UNPAID");
+                    sessionRepository.save(session);
+                    
+                    System.out.println(">>> Session " + session.getId() + " expired. Status reverted to UNPAID.");
+                    publishSessionUpdate(session);
+                }
+            }
+            
             // Send to Dashboard
             dashboardController.sendEvent("alert", event);
         } catch (Exception e) {
@@ -160,4 +180,27 @@ public class ParkingController {
     }
     
     // TODO: Implement Alert logic (e.g. check for unpaid sessions > X minutes)
+    
+    // Scheduled task to check for terminated sessions (no sensor data for > 30s)
+    @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10000)
+    public void checkSessionTermination() {
+        LocalDateTime now = LocalDateTime.now();
+        // Find active sessions
+        java.util.List<ParkingSession> activeSessions = sessionRepository.findAll().stream()
+                .filter(s -> s.getEndTime() == null)
+                .toList();
+        
+        for (ParkingSession session : activeSessions) {
+            // If lastEventTime is null (legacy) or older than 30 seconds
+            if (session.getLastEventTime() != null && session.getLastEventTime().isBefore(now.minusSeconds(30))) {
+                
+                session.setEndTime(now);
+                session.setStatus("TERMINATED"); // Or "FINISHED"
+                sessionRepository.save(session);
+                
+                System.out.println(">>> Session Terminated (Timeout): " + session.getId());
+                publishSessionUpdate(session);
+            }
+        }
+    }
 }
