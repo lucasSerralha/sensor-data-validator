@@ -55,7 +55,7 @@ public class PaymentController {
     }
 }
 ```
-
+```
 ```
 
 ## 4. System Diagrams
@@ -64,58 +64,51 @@ public class PaymentController {
 This diagram illustrates the **Microservices**, **Pipes and Filters** (Kafka), and **Data Persistence** (PostgreSQL) layers.
 
 ```mermaid
-graph TD
-    subgraph External["External Sources"]
-        IoT[IoT Sensor]
-        Driver[Driver App]
-    end
-
-    subgraph Adapters["Adapters (Inbound)"]
-        SensorAdapter[iot-sensor-producer]
-        DriverAdapter[driver-api-gateway]
-    end
-
-    subgraph Kafka["Apache Kafka Cluster (Pipes)"]
-        T_Parking[Topic: parking-events]
-        T_Payment[Topic: payment-events]
-        T_Session[Topic: session.updates]
-        T_Alert[Topic: alert.incident]
-    end
-
-    subgraph Core["Microservices (Filters)"]
-        Controller[parking-controller]
-        AlertGen[alert-generator]
-        Dispatcher[notification-dispatcher]
-    end
-
-    subgraph Storage["Persistence"]
-        DB[(PostgreSQL)]
-    end
-
-    subgraph Output["Output / UI"]
-        Dashboard[Dashboard / Console]
-    end
-
-    IoT -->|"{id: String, time: Long}"| SensorAdapter
-    Driver -->|"{plate: String, amount: Decimal}"| DriverAdapter
-
-    SensorAdapter -->|"SensorEvent {sensorId, timestamp}"| T_Parking
-    DriverAdapter -->|"PaymentEvent {plate, amount, spot}"| T_Payment
-
-    T_Parking -->|Consumes SensorEvent| Controller
-    T_Payment -->|Consumes PaymentEvent| Controller
-
-    Controller -->|"Row: ParkingSession {id, status, paidUntil}"| DB
-    Controller -->|"SessionUpdateEvent {sessionId, status}"| T_Session
-
-    T_Session -->|Consumes SessionUpdateEvent| AlertGen
-    AlertGen -->|"Queries: List<ParkingSession>"| DB
-    AlertGen -->|"AlertEvent {type, message, sensorId}"| T_Alert
-
-    T_Alert -->|"Consumes AlertEvent"| Dispatcher
-    T_Session -->|Updates UI| Dashboard
-    T_Alert -->|Updates UI| Dashboard
-    Dispatcher -->|"Push Notification {msg}"| Dashboard
+---
+config:
+  layout: elk
+---
+flowchart TB
+ subgraph External["External Sources"]
+        IoT["IoT Sensor"]
+        Driver["Driver App"]
+  end
+ subgraph Adapters["Adapters (Inbound)"]
+        SensorAdapter["iot-sensor-producer"]
+        DriverAdapter["driver-api-gateway"]
+  end
+ subgraph Kafka["Apache Kafka Cluster (Pipes)"]
+        T_Parking["Topic: parking-events"]
+        T_Payment["Topic: payment-events"]
+        T_Session["Topic: session.updates"]
+        T_Alert["Topic: alert.incident"]
+  end
+ subgraph Core["Microservices (Filters)"]
+        Controller["parking-controller"]
+        AlertGen["alert-generator"]
+        Dispatcher["notification-dispatcher"]
+  end
+ subgraph Storage["Persistence"]
+        DB[("PostgreSQL")]
+  end
+ subgraph Output["Output / UI"]
+        Dashboard["Dashboard / Console"]
+  end
+    IoT -- {id: String, time: Long} --> SensorAdapter
+    Driver -- {plate: String, amount: Decimal} --> DriverAdapter
+    SensorAdapter -- SensorEvent {sensorId, timestamp} --> T_Parking
+    DriverAdapter -- PaymentEvent {plate, amount, spot} --> T_Payment
+    T_Parking -- Consumes SensorEvent --> Controller
+    T_Payment -- Consumes PaymentEvent --> Controller
+    Controller -- Row: ParkingSession {id, status, paidUntil} --> DB
+    Controller -- SessionUpdateEvent {sessionId, status} --> T_Session
+    T_Session -- Consumes SessionUpdateEvent --> AlertGen
+    AlertGen -- Queries: List --> DB
+    AlertGen -- AlertEvent {type, message, sensorId} --> T_Alert
+    T_Alert -- Consumes AlertEvent --> Dispatcher
+    T_Session -- Updates UI --> Dashboard
+    T_Alert -- Updates UI --> Dashboard
+    Dispatcher -- Push Notification {msg} --> Dashboard
 ```
 
 ### 4.2 Activity Flow
@@ -220,8 +213,15 @@ Wait for the terminals to open and the "Demo Running!" message.
         ```bash
         curl -X POST "http://localhost:8080/api/payments/pay?plate=AA-00-XX&amount=0.10&parkingSpot=A1"
 
+### Rule 4: Spot IOT sensor simulator
+*  **Test**
+    1. Run the code to simulate a car in the parking spot. This generates a parking session after 30 seconds.
+   ```bash
+    curl -X POST "http://localhost:8081/api/simulation/trigger?id=A1&time=600"
 
-        ```
+
+   ```
+   
     2.  **Expected Output** (`parking-controller`): `>>> Payment Processed... Paid until: <Time + 1 min>`
     3.  Wait > 1 minute.
     4.  **Expected Output** (`alert-generator`):
