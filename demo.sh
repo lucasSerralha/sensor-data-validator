@@ -6,20 +6,8 @@ NC='\033[0m'
 
 echo -e "${GREEN}>>> Starting Smart Parking System Demo...${NC}"
 
-# 1. Build
-echo -e "${GREEN}>>> Building Services...${NC}"
-
-# Build Common DTO first
-echo -e "${GREEN}>>> Building common-dto...${NC}"
-mvn clean install -f common-dto/pom.xml -DskipTests
-
-# Build other services
-services=("iot-sensor-producer" "driver-api-gateway" "parking-controller" "alert-generator" "notification-dispatcher")
-
-for service in "${services[@]}"; do
-    echo -e "${GREEN}>>> Building $service...${NC}"
-    mvn clean install -f $service/pom.xml -DskipTests
-done
+# 1. Build (Handled by Docker Compose)
+echo -e "${GREEN}>>> Building Services via Docker Compose...${NC}"
 
 # 2. Start Infrastructure
 echo -e "${GREEN}>>> Stopping any existing containers...${NC}"
@@ -44,14 +32,15 @@ docker-compose up -d --build
 
 # Wait for Infra
 echo -e "${GREEN}>>> Waiting for Infrastructure...${NC}"
-sleep 10
+sleep 30
 
 # 4. Open Dashboard
-echo -e "${GREEN}>>> Opening Dashboard...${NC}"
-xdg-open http://localhost:8082 &
+# 4. Open Monitoring Terminals
+echo -e "${GREEN}>>> Opening Monitoring Terminals...${NC}"
+./monitor.sh &
 
 # 5. Trigger Simulation
 echo -e "${GREEN}>>> Triggering Simulation (Sensor A1)...${NC}"
-curl -X POST "http://localhost:8081/api/simulation/trigger?id=A1&time=40"
+curl -X POST "http://localhost:8081/api/simulation/trigger?id=A1&time=600"
 
 echo -e "${GREEN}>>> Demo Running! Check http://localhost:3000 for Grafana (admin/admin)${NC}"

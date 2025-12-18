@@ -7,7 +7,7 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 
 @SpringBootApplication
 @EnableScheduling
-@EntityScan("com.smartparking.backend.model") // Scan the entity package (we will copy the entity or share it)
+@EntityScan("com.smartparking.alert") // Scan the entity package
 public class AlertGeneratorApp {
     public static void main(String[] args) {
         SpringApplication.run(AlertGeneratorApp.class, args);

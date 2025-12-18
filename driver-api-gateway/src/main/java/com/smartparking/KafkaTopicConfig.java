@@ -10,7 +10,7 @@ public class KafkaTopicConfig {
 
     @Bean
     public NewTopic paymentReceivedTopic() {
-        return TopicBuilder.name("payment.received")
+        return TopicBuilder.name("payment-events")
                 .partitions(1)
                 .replicas(1)
                 .build();

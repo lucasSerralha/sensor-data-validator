@@ -41,6 +41,9 @@ public class ParkingSession {
     @Column(name = "alerted")
     private boolean alerted = false;
 
+    @Column(name = "paid_until")
+    private LocalDateTime paidUntil;
+
     public UUID getId() { return id; }
     public void setId(UUID id) { this.id = id; }
 
@@ -64,4 +67,7 @@ public class ParkingSession {
 
     public boolean isAlerted() { return alerted; }
     public void setAlerted(boolean alerted) { this.alerted = alerted; }
+
+    public LocalDateTime getPaidUntil() { return paidUntil; }
+    public void setPaidUntil(LocalDateTime paidUntil) { this.paidUntil = paidUntil; }
 }

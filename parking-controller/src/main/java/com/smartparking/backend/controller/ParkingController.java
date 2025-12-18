@@ -33,6 +33,8 @@ public class ParkingController {
         this.dashboardController = dashboardController;
     }
 
+    private final java.util.Map<String, LocalDateTime> pendingSessions = new java.util.concurrent.ConcurrentHashMap<>();
+
     @KafkaListener(topics = "parking-events", groupId = "controller-sensor-group")
     public void handleSensorEvent(String message) {
         try {
@@ -43,18 +45,39 @@ public class ParkingController {
             Optional<ParkingSession> existingSession = sessionRepository.findBySensorIdAndEndTimeIsNull(sensorId);
 
             if (existingSession.isEmpty()) {
-                // Create new session
-                ParkingSession session = new ParkingSession();
-                session.setSensorId(sensorId);
-                session.setStartTime(LocalDateTime.now());
-                session.setStatus("UNPAID");
+                // Logic for 30-second delay
+                LocalDateTime now = LocalDateTime.now();
                 
-                sessionRepository.save(session);
-                
-                System.out.println(">>> Session Created: " + session.getId() + " for sensor " + sensorId);
-                
-                // Publish update
-                publishSessionUpdate(session);
+                if (!pendingSessions.containsKey(sensorId)) {
+                    // First time seeing this sensor active
+                    pendingSessions.put(sensorId, now);
+                    System.out.println(">>> Sensor " + sensorId + " active. Waiting 30s to confirm session...");
+                } else {
+                    // We have seen it before
+                    LocalDateTime firstSeen = pendingSessions.get(sensorId);
+                    if (now.isAfter(firstSeen.plusSeconds(30))) {
+                        // It has been more than 30 seconds
+                        
+                        // Create new session
+                        ParkingSession session = new ParkingSession();
+                        session.setSensorId(sensorId);
+                        session.setStartTime(firstSeen); // Use the time we first saw it
+                        session.setStatus("UNPAID");
+                        
+                        sessionRepository.save(session);
+                        
+                        System.out.println(">>> Session Created: " + session.getId() + " for sensor " + sensorId);
+                        
+                        // Publish update
+                        publishSessionUpdate(session);
+                        
+                        // Remove from pending so we don't create it again
+                        pendingSessions.remove(sensorId);
+                    }
+                }
+            } else {
+                // Session already exists, ensure it's not in pending
+                pendingSessions.remove(sensorId);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -75,6 +98,18 @@ public class ParkingController {
                 session.setPlate(event.getPlate());
                 session.setAmount(event.getAmount());
                 session.setStatus("PAID");
+                
+                // Calculate paid time: 0.10 EUR = 1 minute (For Demo)
+                // minutes = (amount / 0.10) * 1
+                if (event.getAmount() != null) {
+                    long minutesPaid = event.getAmount().divide(new BigDecimal("0.10"), java.math.MathContext.DECIMAL32)
+                            .multiply(new BigDecimal("1")).longValue();
+                    
+                    // paidUntil = startTime + minutesPaid
+                    session.setPaidUntil(session.getStartTime().plusMinutes(minutesPaid));
+                    
+                    System.out.println(">>> Payment: " + event.getAmount() + " EUR -> " + minutesPaid + " minutes. Paid until: " + session.getPaidUntil());
+                }
                 
                 sessionRepository.save(session);
                 

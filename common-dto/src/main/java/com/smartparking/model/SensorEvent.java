@@ -1,7 +1,5 @@
 package com.smartparking.model;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
 public class SensorEvent {
 
     private String sensorId;

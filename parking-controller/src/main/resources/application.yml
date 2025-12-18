@@ -18,7 +18,7 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: true
-    show-sql: true
+    show-sql: false
 
   kafka:
     bootstrap-servers: kafka:9092
