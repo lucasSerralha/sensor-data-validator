@@ -32,6 +32,7 @@ The `PaymentController` acts as an adapter, converting an external **HTTP REST R
 
 ```java
 // Adapter: Converts HTTP POST -> Kafka Message
+
 @RestController
 @RequestMapping("/api/payments")
 public class PaymentController {
