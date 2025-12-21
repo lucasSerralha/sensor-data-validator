@@ -27,7 +27,6 @@ public class AlertGenerator {
     }
 
     // Run every 10 seconds for debugging
-    // Run every 10 seconds for debugging
     @Scheduled(fixedRate = 10000)
     public void checkUnpaidSessions() {
         logger.info(">>> Checking for sessions...");
@@ -37,7 +36,6 @@ public class AlertGenerator {
 
         for (ParkingSession session : allSessions) {
             
-            // 1. Check UNPAID > 1 minute
             if ("UNPAID".equals(session.getStatus())) {
                  if (!session.isAlerted() && session.getStartTime().isBefore(now.minusMinutes(1))) {
                     logger.info(">>> UNPAID Alert: Session {}", session.getId());
@@ -47,10 +45,8 @@ public class AlertGenerator {
                 }
             }
             
-            // 2. Check PAID but EXPIRED
             else if ("PAID".equals(session.getStatus())) {
                 if (session.getPaidUntil() != null && now.isAfter(session.getPaidUntil())) {
-                    // Only alert if not already alerted (or maybe we want repeated alerts? Let's stick to once for now)
                     if (!session.isAlerted()) {
                         logger.info(">>> EXPIRED Alert: Session {}", session.getId());
                         sendAlert(session, "PAID_EXPIRED", "Vehicle in spot " + session.getSensorId() + " expired at " + session.getPaidUntil());

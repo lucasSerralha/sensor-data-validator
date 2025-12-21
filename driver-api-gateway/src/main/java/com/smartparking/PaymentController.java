@@ -33,20 +33,17 @@ public class PaymentController {
     @PostMapping("/pay")
     public ResponseEntity<String> processPayment(
             @RequestParam String plate,
-            @RequestParam String parkingSpot, // Recebe a vaga (ex: A1)
+            @RequestParam String parkingSpot,
             @RequestParam BigDecimal amount) {
 
         logger.info("Received payment request for plate: {} at spot: {}", plate, parkingSpot);
 
-        // Agora passamos a vaga para o construtor
-        PaymentEvent evento = new PaymentEvent(plate, parkingSpot, amount, System.currentTimeMillis());
+        PaymentEvent event = new PaymentEvent(plate, parkingSpot, amount, System.currentTimeMillis());
 
         try {
-            String jsonMessage = objectMapper.writeValueAsString(evento);
+            String jsonMessage = objectMapper.writeValueAsString(event);
 
-            // A chave continua a ser a matrícula (para manter ordem por carro),
-            // mas o payload JSON agora leva a vaga.
-            kafkaTemplate.send(paymentTopic, evento.getPlate(), jsonMessage);
+            kafkaTemplate.send(paymentTopic, event.getPlate(), jsonMessage);
 
             logger.info("Payment event sent to Kafka: {}", jsonMessage);
 

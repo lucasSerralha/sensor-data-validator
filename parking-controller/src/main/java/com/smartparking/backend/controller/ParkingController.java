@@ -10,6 +10,8 @@ import com.smartparking.model.SessionUpdateEvent;
 import org.springframework.kafka.annotation.KafkaListener;
 import org.springframework.kafka.core.KafkaTemplate;
 import org.springframework.stereotype.Component;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -17,6 +19,8 @@ import java.util.Optional;
 
 @Component
 public class ParkingController {
+
+    private static final Logger logger = LoggerFactory.getLogger(ParkingController.class);
 
     private final ParkingSessionRepository sessionRepository;
     private final KafkaTemplate<String, String> kafkaTemplate;
@@ -49,9 +53,8 @@ public class ParkingController {
                 LocalDateTime now = LocalDateTime.now();
                 
                 if (!pendingSessions.containsKey(sensorId)) {
-                    // First time seeing this sensor active
                     pendingSessions.put(sensorId, now);
-                    System.out.println(">>> Sensor " + sensorId + " active. Waiting 30s to confirm session...");
+                    logger.info(">>> Sensor {} active. Waiting 30s to confirm session...", sensorId);
                 } else {
                     // We have seen it before
                     LocalDateTime firstSeen = pendingSessions.get(sensorId);
@@ -67,7 +70,7 @@ public class ParkingController {
                         
                         sessionRepository.save(session);
                         
-                        System.out.println(">>> Session Created: " + session.getId() + " for sensor " + sensorId);
+                        logger.info(">>> Session Created: {} for sensor {}", session.getId(), sensorId);
                         
                         // Publish update
                         publishSessionUpdate(session);
@@ -114,7 +117,7 @@ public class ParkingController {
                     // paidUntil = startTime + minutesPaid
                     session.setPaidUntil(session.getStartTime().plusMinutes(minutesPaid));
                     
-                    System.out.println(">>> Payment: " + event.getAmount() + " EUR -> " + minutesPaid + " minutes. Paid until: " + session.getPaidUntil());
+                    logger.info(">>> Payment: {} EUR -> {} minutes. Paid until: {}", event.getAmount(), minutesPaid, session.getPaidUntil());
                 }
                 
                 sessionRepository.save(session);
@@ -125,7 +128,7 @@ public class ParkingController {
             } else {
                 // Payment received but no car detected? Or maybe race condition.
                 // For now, we can log or create an alert.
-                System.out.println(">>> WARNING: Payment received for " + parkingSpot + " but no active session found.");
+                logger.warn(">>> WARNING: Payment received for {} but no active session found.", parkingSpot);
             }
         } catch (Exception e) {
             e.printStackTrace();
@@ -167,7 +170,7 @@ public class ParkingController {
                     session.setStatus("UNPAID");
                     sessionRepository.save(session);
                     
-                    System.out.println(">>> Session " + session.getId() + " expired. Status reverted to UNPAID.");
+                    logger.info(">>> Session {} expired. Status reverted to UNPAID.", session.getId());
                     publishSessionUpdate(session);
                 }
             }
@@ -179,7 +182,7 @@ public class ParkingController {
         }
     }
     
-    // TODO: Implement Alert logic (e.g. check for unpaid sessions > X minutes)
+
     
     // Scheduled task to check for terminated sessions (no sensor data for > 30s)
     @org.springframework.scheduling.annotation.Scheduled(fixedRate = 10000)
@@ -198,7 +201,7 @@ public class ParkingController {
                 session.setStatus("TERMINATED"); // Or "FINISHED"
                 sessionRepository.save(session);
                 
-                System.out.println(">>> Session Terminated (Timeout): " + session.getId());
+                logger.info(">>> Session Terminated (Timeout): {}", session.getId());
                 publishSessionUpdate(session);
             }
         }

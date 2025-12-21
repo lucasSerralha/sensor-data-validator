@@ -52,8 +52,8 @@ make_payment "AA-02-BB" "A2" "0.10"
 make_payment "AA-03-CC" "A3" "0.50"
 
 # A4: Wait 1 minute, then pay for 4 minutes
-echo -e "${BLUE}>>> Waiting 55 seconds before paying for A4...${NC}"
-sleep 55
+echo -e "${BLUE}>>> Waiting 50 seconds before paying for A4...${NC}"
+sleep 50
 make_payment "AA-04-DD" "A4" "0.40"
 
 # A5, A6: No payment (Testing alerts/violations)
